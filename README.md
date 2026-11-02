@@ -264,8 +264,9 @@ System Volume Information、pagefile、hiberfil、`.vhdx`/`.vhd`（**含任意�
 作者机器实测：Windows 11 + Windows PowerShell 5.1 + zh-CN + 非管理员 + 存在自指 junction
 的配置下，`selftest` 83 项断言全过，`scan` / `report` / `dry-run` / `verify` 全流程跑通。
 
-CI（GitHub Actions `windows-latest`）在 `powershell` 和 `pwsh` 两个 shell 下跑自检、
-只读扫描、报告渲染和空删除试运行。**其他 Windows 版本/语言/权限组合尚未逐一实测**，
+CI（GitHub Actions `windows-latest`）跑三个 job：`powershell`（5.1）与 `pwsh`（7）各跑一遍
+自检、只读扫描、中英文报告渲染、空删除试运行和对账，外加一个 `PSScriptAnalyzer` 的
+error 级静态检查。**其他 Windows 版本/语言/权限组合尚未逐一实测**，
 遇到问题请开 issue 并附 `selftest` 输出。
 
 ### 明确清不到的地方
