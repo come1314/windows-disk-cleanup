@@ -112,6 +112,9 @@ $script:ProtectedRoots = $null
 $script:DenyExact = $null
 $script:DenyTree = $null
 $script:DenyRegex = $null
+# exceptions swallowed by Invoke-TreeWalk callbacks; surfaced by the selftest
+$script:WalkFail = 0
+$script:WalkError = $null
 
 # ---------------------------------------------------------------- helpers ----
 
@@ -317,18 +320,42 @@ function Invoke-TreeWalk {
 
     while ($stack.Count -gt 0) {
         $cur = [string]$stack.Pop()
-        try {
-            foreach ($f in [System.IO.Directory]::EnumerateFiles($cur)) {
-                if ($OnFile) { $null = & $OnFile (New-Object System.IO.FileInfo $f) }
+
+        # Each callback is guarded on its own. A throw used to abort the whole
+        # enumeration of that directory, which silently turned a real failure
+        # into "nothing to do" - the exact opposite of what a delete path
+        # should do with an error. Failures are counted and kept, and the
+        # selftest prints them.
+        $files = $null
+        try { $files = [System.IO.Directory]::EnumerateFiles($cur) } catch { }
+        if ($files) {
+            foreach ($f in $files) {
+                if (-not $OnFile) { continue }
+                try { $null = & $OnFile (New-Object System.IO.FileInfo $f) }
+                catch {
+                    $script:WalkFail++
+                    if (-not $script:WalkError) { $script:WalkError = [string]$_.Exception.Message }
+                }
             }
-        } catch { }
-        try {
-            foreach ($d in [System.IO.Directory]::EnumerateDirectories($cur)) {
-                $di = New-Object System.IO.DirectoryInfo $d
-                if ($OnDir) { $null = & $OnDir $di }
+        }
+
+        $dirs = $null
+        try { $dirs = [System.IO.Directory]::EnumerateDirectories($cur) } catch { }
+        if ($dirs) {
+            foreach ($d in $dirs) {
+                $di = $null
+                try { $di = New-Object System.IO.DirectoryInfo $d } catch { }
+                if ($null -eq $di) { continue }
+                if ($OnDir) {
+                    try { $null = & $OnDir $di }
+                    catch {
+                        $script:WalkFail++
+                        if (-not $script:WalkError) { $script:WalkError = [string]$_.Exception.Message }
+                    }
+                }
                 if ($Recurse -and (($di.Attributes -band $reparse) -eq 0)) { $stack.Push($d) }
             }
-        } catch { }
+        }
     }
 }
 
@@ -1480,6 +1507,7 @@ function Invoke-SelfTest {
             Write-Output ('  debug  walk count: ' + (Get-PathSize $tmpRoot).Files)
             Write-Output ('  debug  hits      : ' + ($hits -join ' | '))
             Write-Output ('  debug  deny(vhdx): ' + (Test-DeniedPath $vhdx))
+            Write-Output ('  debug  walk fail : ' + $script:WalkFail + '  ' + $script:WalkError)
             Write-Output ('  debug  profile   : ' + $env:USERPROFILE + '  TEMP=' + $env:TEMP)
         }
         Check 'entry gate blocks the nested vhdx' (-not (Test-DeletableChild (Get-Item -LiteralPath $vhdx -Force)))
@@ -1577,6 +1605,7 @@ function Invoke-SelfTest {
             Write-Output ('  debug  exists    : ' + [System.IO.Directory]::Exists((Get-LongPath $dTarget)))
             Write-Output ('  debug  walk count: ' + (Get-PathSize $dTarget).Files)
             Write-Output ('  debug  result    : ok=' + $res.Ok + ' fail=' + $res.Fail + ' protected=' + $res.Protected)
+            Write-Output ('  debug  walk fail : ' + $script:WalkFail + '  ' + $script:WalkError)
             try {
                 foreach ($f in [System.IO.Directory]::EnumerateFileSystemEntries((Get-LongPath $dTarget))) {
                     Write-Output ('  debug  entry     : ' + $f + '  denied=' + (Test-DeniedPath $f))
