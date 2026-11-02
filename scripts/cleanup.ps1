@@ -303,13 +303,19 @@ function Invoke-TreeWalk {
         [string]$Path,
         [switch]$Recurse,
         [scriptblock]$OnFile,
-        [scriptblock]$OnDir
+        [scriptblock]$OnDir,
+        # passed through to the callbacks as their second argument. Callbacks
+        # must not rely on GetNewClosure(): a closure gets its own session state,
+        # and on some hosts it cannot resolve the functions defined in this
+        # script ("Test-DeniedPath is not recognized"), which would make every
+        # entry silently skipped. State travels in this object instead.
+        [object]$State
     )
     if (-not $Path) { return }
     $root = Get-LongPath $Path
 
     if ([System.IO.File]::Exists($root)) {
-        if ($OnFile) { $null = & $OnFile (New-Object System.IO.FileInfo $root) }
+        if ($OnFile) { $null = & $OnFile (New-Object System.IO.FileInfo $root) $State }
         return
     }
     if (-not [System.IO.Directory]::Exists($root)) { return }
@@ -331,7 +337,7 @@ function Invoke-TreeWalk {
         if ($files) {
             foreach ($f in $files) {
                 if (-not $OnFile) { continue }
-                try { $null = & $OnFile (New-Object System.IO.FileInfo $f) }
+                try { $null = & $OnFile (New-Object System.IO.FileInfo $f) $State }
                 catch {
                     $script:WalkFail++
                     if (-not $script:WalkError) { $script:WalkError = [string]$_.Exception.Message }
@@ -347,7 +353,7 @@ function Invoke-TreeWalk {
                 try { $di = New-Object System.IO.DirectoryInfo $d } catch { }
                 if ($null -eq $di) { continue }
                 if ($OnDir) {
-                    try { $null = & $OnDir $di }
+                    try { $null = & $OnDir $di $State }
                     catch {
                         $script:WalkFail++
                         if (-not $script:WalkError) { $script:WalkError = [string]$_.Exception.Message }
@@ -512,21 +518,22 @@ function Get-DeniedDescendant {
     if (-not $Root) { return $hits }
     if (-not [System.IO.Directory]::Exists((Get-LongPath $Root))) { return $hits }
 
-    $state = [PSCustomObject]@{ N = 0; Stop = $false }
-    $limit = 0
-    if ($FirstOnly) { $limit = 1 }
+    # State travels as an argument, not through GetNewClosure(): a closure gets
+    # its own session state and cannot reliably resolve this script's functions.
+    $ctx = [PSCustomObject]@{ Hits = $hits; N = 0; Stop = $false; Limit = 0 }
+    if ($FirstOnly) { $ctx.Limit = 1 }
 
     $visit = {
-        param($e)
-        if ($state.Stop) { return }
+        param($e, $c)
+        if ($c.Stop) { return }
         if (Test-DeniedPath $e.FullName) {
-            [void]$hits.Add((Get-PlainPath $e.FullName))
-            $state.N++
-            if ($limit -gt 0 -and $state.N -ge $limit) { $state.Stop = $true }
+            [void]$c.Hits.Add((Get-PlainPath $e.FullName))
+            $c.N++
+            if ($c.Limit -gt 0 -and $c.N -ge $c.Limit) { $c.Stop = $true }
         }
-    }.GetNewClosure()
+    }
 
-    Invoke-TreeWalk -Path $Root -Recurse -OnFile $visit -OnDir $visit
+    Invoke-TreeWalk -Path $Root -Recurse -OnFile $visit -OnDir $visit -State $ctx
     return $hits
 }
 
@@ -565,30 +572,36 @@ function Remove-TreeContent {
 
     $dirs = New-Object System.Collections.ArrayList
 
+    # State travels as an argument, not through GetNewClosure(): a closure gets
+    # its own session state and cannot reliably resolve this script's functions,
+    # so every entry would be silently skipped and the delete would report
+    # success while deleting nothing.
+    $ctx = [PSCustomObject]@{ St = $st; Cut = $cut; Reparse = $reparse; Dirs = $dirs }
+
     # Every file is gated individually rather than deleting a child directory
     # recursively. Costs one syscall per file, buys two things: a protected file
     # deep in the tree cannot be taken down with its parent, and the walk visits
     # each node exactly once instead of once per ancestor.
     $onFile = {
-        param($f)
-        if ($cut -and $f.LastWriteTime -gt $cut) { return }
-        if (-not (Test-DeletableChild $f)) { $st.Protected++; return }
-        try { [System.IO.File]::Delete((Get-LongPath $f.FullName)); $st.Ok++ } catch { $st.Fail++ }
-    }.GetNewClosure()
+        param($f, $c)
+        if ($c.Cut -and $f.LastWriteTime -gt $c.Cut) { return }
+        if (-not (Test-DeletableChild $f)) { $c.St.Protected++; return }
+        try { [System.IO.File]::Delete((Get-LongPath $f.FullName)); $c.St.Ok++ } catch { $c.St.Fail++ }
+    }
 
     $onDir = {
-        param($d)
-        if (-not (Test-DeletableChild $d)) { $st.Protected++; return }
+        param($d, $c)
+        if (-not (Test-DeletableChild $d)) { $c.St.Protected++; return }
         # the walk never descends into a reparse point, so it lands here as a
         # leaf: unlink it, never look through it
-        if (($d.Attributes -band $reparse) -ne 0) {
-            try { [System.IO.Directory]::Delete((Get-LongPath $d.FullName)); $st.Ok++ } catch { $st.Fail++ }
+        if (($d.Attributes -band $c.Reparse) -ne 0) {
+            try { [System.IO.Directory]::Delete((Get-LongPath $d.FullName)); $c.St.Ok++ } catch { $c.St.Fail++ }
             return
         }
-        [void]$dirs.Add($d)
-    }.GetNewClosure()
+        [void]$c.Dirs.Add($d)
+    }
 
-    Invoke-TreeWalk -Path $Path -Recurse -OnFile $onFile -OnDir $onDir
+    Invoke-TreeWalk -Path $Path -Recurse -OnFile $onFile -OnDir $onDir -State $ctx
 
     # deepest first, so a parent becomes empty before it is tested
     foreach ($d in ($dirs | Sort-Object { $_.FullName.Length } -Descending)) {
