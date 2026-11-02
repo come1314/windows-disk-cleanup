@@ -1597,11 +1597,20 @@ function Invoke-SelfTest {
 
 # ---------------------------------------------------------------- dispatch --
 
+# Every mode ends with an explicit exit code. Without it the process inherits
+# $LASTEXITCODE from whichever native command ran last inside the mode -
+# vssadmin, powercfg, fsutil - and a harmless "access denied" from one of them
+# would make a perfectly successful verify look like a failure to any caller.
+# GitHub Actions appends `exit $LASTEXITCODE` to a PowerShell step, so this is
+# not theoretical: it turned a green verify step red.
 switch ($Mode) {
-    'scan' { Invoke-Scan }
-    'clean' { Invoke-Clean }
-    'verify' { Invoke-Verify }
-    'admin-check' { Invoke-AdminCheck }
-    'selftest' { Invoke-SelfTest }
-    'report' { Invoke-Report -OutPath $OutFile -MinMB $MinMB }
+    'scan' { Invoke-Scan; exit 0 }
+    'clean' { Invoke-Clean; exit 0 }
+    'verify' { Invoke-Verify; exit 0 }
+    'admin-check' { Invoke-AdminCheck; exit 0 }
+    'selftest' {
+        Invoke-SelfTest
+        if ($script:fail -gt 0) { exit 1 } else { exit 0 }
+    }
+    'report' { Invoke-Report -OutPath $OutFile -MinMB $MinMB; exit 0 }
 }

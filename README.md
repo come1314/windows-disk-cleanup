@@ -126,6 +126,9 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\cleanup.ps1 -Mode 
 通用参数：`-Exclude "*剪映*"` 把匹配的项从清单和删除中排除，`-MinMB 50` 控制报告最小展示体积，
 `-Lang en` 输出英文报告（默认中文，`auto` 为按系统语言猜测，不建议依赖），`-TopFiles 15` 控制 `-Deep` 列出的文件条数。
 
+退出码：`0` 正常完成（包括"没有可删的项"这种空结果），`1` 自检断言失败，`2` 运行前提不满足（PowerShell 版本、语言模式、账户类型）。
+可以直接接在 CI 或计划任务里。
+
 ## 报告长什么样
 
 `-Mode report` 直接产出，不用自己排版。完整示例见 [`sample-report.md`](sample-report.md)：
