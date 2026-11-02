@@ -4,6 +4,9 @@
 >
 > A whitelist-driven, confirmation-first disk cleanup skill for Windows. It refuses to delete anything outside a curated catalog, and every deletion needs per-item human approval.
 
+[![selftest](https://github.com/come1314/windows-disk-cleanup/actions/workflows/selftest.yml/badge.svg)](https://github.com/come1314/windows-disk-cleanup/actions/workflows/selftest.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 ---
 
 ## English quick start
@@ -109,6 +112,25 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\cleanup.ps1 -Mode 
 `-Keys` 两种写法都行：报告里的**编号**（`25,48`），或扫描输出里的 **key**（`a258b99a`）。
 编号会经 `disk-scan.json` 里记录的映射换算成路径，所以两次运行之间编号移位也不会删错东西。
 
+## 目录结构
+
+```
+windows-disk-cleanup/
+├─ SKILL.md                    # Agent 读的工作流与铁律
+├─ scripts/
+│  ├─ cleanup.ps1              # 全部逻辑：scan / clean / report / verify / selftest
+│  └─ i18n.zh.json             # 中文文案词库，改措辞不用碰代码
+├─ references/
+│  ├─ safety-rules.md          # 动手前必读
+│  ├─ targets.md               # 每个缓存位置"这是什么"
+│  └─ troubleshooting.md       # 释放空间不符预期时怎么查
+├─ sample-report.md            # 报告长什么样（已匿名化）
+└─ .github/workflows/selftest.yml
+```
+
+运行时产物（`disk-scan.json`、`cleanup-audit.jsonl`、`report*.md`）都在 `.gitignore` 里——
+它们记录的是**这一台机器**的路径和体积，不该进仓库。
+
 ## 命令一览
 
 | 命令 | 是否改动磁盘 | 说明 |
@@ -131,26 +153,27 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\cleanup.ps1 -Mode 
 
 ## 报告长什么样
 
-`-Mode report` 直接产出，不用自己排版。完整示例见 [`sample-report.md`](sample-report.md)：
+`-Mode report` 直接产出，不用自己排版。完整示例见 [`sample-report.md`](sample-report.md)
+（应用名与体积做了匿名化处理，不是任何真实机器的扫描结果）：
 
 ```markdown
 ## 磁盘清理清单
 
-> 扫描时间 2026-11-02 14:13 | 当前可用空间 **106.54 GB**
+> 扫描时间 2026-11-02 14:53 | 当前可用空间 **71.80 GB**
 
-### 🟢 第一档：纯缓存，删了没感觉（5 项，合计 2.58 GB）
+### 🟢 第一档：纯缓存，删了没感觉（9 项，合计 4.02 GB）
 
 | # | 这是什么 | 体积 |
 |---|---|---|
-| 25 | **Edge Default 网页离线缓存** —— 网页应用（Service Worker）的离线资源缓存 | 1.96 GB |
-| 4 | **npx 临时包** —— npx 临时安装的包 | 151 MB |
+| 25 | **Edge Default 网页离线缓存** —— 网页应用（Service Worker）的离线资源缓存 | 1.42 GB |
+| 4 | **npx 临时包** —— npx 临时安装的包 | 1.16 GB |
 
-### 🟡 第二档：能删，但有代价（20 项，合计 9.59 GB）
+### 🟡 第二档：能删，但有代价（11 项，合计 15.64 GB）
 
 | # | 这是什么 | 体积 | 删了会怎样 |
 |---|---|---|---|
+| 36 | **旧版 Windows** —— 升级前留下的旧系统，用于回滚 | 7.12 GB | 失去回滚到旧版本的能力 |
 | 35 | **完整内存转储** —— 某次蓝屏时保存的完整内存镜像 | 2.50 GB | 无法再分析那次蓝屏 |
-| 48 | **JetBrains PyCharm 代码索引** —— IDE 的工程索引 | 650 MB | 重新打开工程要重建索引 |
 ```
 
 文案全部来自 `scripts/i18n.zh.json`，改词库就能改说法，不用碰代码。
@@ -283,4 +306,4 @@ CI（GitHub Actions `windows-latest`）在 `powershell` 和 `pwsh` 两个 shell 
 
 ## License
 
-MIT
+MIT © 2026 Jiandan Song，见 [LICENSE](LICENSE)。
