@@ -6,27 +6,30 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  selftest:
-    strategy:
-      fail-fast: false
-      matrix:
-        shell: [powershell, pwsh]
+  # NOTE: the shell is not taken from a matrix on purpose. GitHub rejects
+  # `shell: ${{ matrix.shell }}` at parse time ("Unrecognized named-value:
+  # matrix"), which fails the whole workflow with zero jobs. Two explicit jobs
+  # is the boring, working form.
+  windows-powershell-5-1:
+    name: selftest (Windows PowerShell 5.1)
     runs-on: windows-latest
-    name: selftest (${{ matrix.shell }})
     steps:
       - uses: actions/checkout@v4
 
       - name: Security assertions
-        shell: ${{ matrix.shell }}
+        shell: powershell
         run: ./scripts/cleanup.ps1 -Mode selftest
 
       - name: Read-only scan
-        shell: ${{ matrix.shell }}
+        shell: powershell
         run: ./scripts/cleanup.ps1 -Mode scan
 
       - name: Render Chinese report
-        shell: ${{ matrix.shell }}
+        shell: powershell
         run: |
           ./scripts/cleanup.ps1 -Mode report -OutFile report.md
           if (-not (Test-Path report.md)) { throw 'report not generated' }
@@ -40,7 +43,7 @@ jobs:
           Write-Host 'chinese report rendered OK'
 
       - name: Render English report
-        shell: ${{ matrix.shell }}
+        shell: powershell
         run: |
           ./scripts/cleanup.ps1 -Mode report -Lang en -OutFile report-en.md
           $c = Get-Content report-en.md -Raw
@@ -48,23 +51,74 @@ jobs:
           Write-Host 'english report rendered OK'
 
       - name: Dry run must delete nothing
-        shell: ${{ matrix.shell }}
+        shell: powershell
         run: ./scripts/cleanup.ps1 -Mode clean -Keys deadbeef
 
       - name: Verify mode runs
-        shell: ${{ matrix.shell }}
+        shell: powershell
         run: ./scripts/cleanup.ps1 -Mode verify
 
       - name: Upload scan output
         uses: actions/upload-artifact@v4
         with:
-          name: scan-${{ matrix.shell }}
+          name: scan-windows-powershell-5-1
+          path: |
+            disk-scan.json
+            report.md
+          if-no-files-found: error
+
+  pwsh-7:
+    name: selftest (PowerShell 7)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Security assertions
+        shell: pwsh
+        run: ./scripts/cleanup.ps1 -Mode selftest
+
+      - name: Read-only scan
+        shell: pwsh
+        run: ./scripts/cleanup.ps1 -Mode scan
+
+      - name: Render Chinese report
+        shell: pwsh
+        run: |
+          ./scripts/cleanup.ps1 -Mode report -OutFile report.md
+          if (-not (Test-Path report.md)) { throw 'report not generated' }
+          $c = [System.IO.File]::ReadAllText((Resolve-Path report.md), [System.Text.Encoding]::UTF8)
+          if ($c.Length -lt 200) { throw 'report looks empty' }
+          $ci = [string][char]0x78C1   # U+78C1
+          if (-not $c.Contains($ci)) { throw 'i18n dictionary did not render' }
+          Write-Host 'chinese report rendered OK'
+
+      - name: Render English report
+        shell: pwsh
+        run: |
+          ./scripts/cleanup.ps1 -Mode report -Lang en -OutFile report-en.md
+          $c = Get-Content report-en.md -Raw
+          if ($c -notmatch 'Disk cleanup report') { throw 'English report did not render' }
+          Write-Host 'english report rendered OK'
+
+      - name: Dry run must delete nothing
+        shell: pwsh
+        run: ./scripts/cleanup.ps1 -Mode clean -Keys deadbeef
+
+      - name: Verify mode runs
+        shell: pwsh
+        run: ./scripts/cleanup.ps1 -Mode verify
+
+      - name: Upload scan output
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-pwsh-7
           path: |
             disk-scan.json
             report.md
           if-no-files-found: error
 
   lint:
+    name: PSScriptAnalyzer
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
