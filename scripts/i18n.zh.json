@@ -1,0 +1,288 @@
+{
+  "_comment": "i18n dictionary for -Mode report. Keys under 'items' match catalog names exactly; 'byPrefix'/'bySuffix' handle dynamically discovered folders (browsers, per-app caches).",
+  "_version": 1,
+
+  "tiers": {
+    "safe": "🟢 第一档：纯缓存，删了没感觉",
+    "caution": "🟡 第二档：能删，但有代价",
+    "action": "⚙️ 需要单独操作（不能当普通删除处理）"
+  },
+
+  "report": {
+    "title": "磁盘清理清单",
+    "scannedLabel": "扫描时间",
+    "freeLabel": "当前可用空间",
+    "totalLabel": "合计",
+    "tierSummary": "（{count} 项，合计 {size}）",
+    "tableSafeHeader": "| # | 这是什么 | 体积 |",
+    "tableCautionHeader": "| # | 这是什么 | 体积 | 删了会怎样 |",
+    "tableDelimSafe": "|---|---|---|",
+    "tableDelimCaution": "|---|---|---|---|",
+    "descSeparator": " —— ",
+    "emptyTier": "本次没有发现可清理的项。",
+    "neverTitle": "🔴 不建议动",
+    "neverBody": [
+      "**Windows Installer** —— 软件的安装缓存，删了以后软件卸不干净、修不了",
+      "**WinSxS** —— 系统组件存储，手动删会导致更新失败甚至无法开机（正确做法是 DISM）",
+      "**WSL / Docker 虚拟磁盘** —— 里面是完整的文件系统，删了等于删数据",
+      "**微信 / QQ 聊天记录** —— 属于个人数据"
+    ],
+    "askLabel": "回复编号即可（例如「1、3、7」或「绿色全清」），我逐项确认后执行。",
+    "hiddenNote": "另有 {count} 项小于 {min} MB，已省略。",
+    "approveWarning": "注意：这一步删除不可恢复。"
+  },
+
+  "items": {
+    "User Temp": {
+      "name": "用户临时文件",
+      "what": "程序安装、运行时留下的临时文件",
+      "impact": "无影响。被正在运行的程序占用的会自动跳过"
+    },
+    "Windows Temp": {
+      "name": "系统临时文件",
+      "what": "系统级临时文件",
+      "impact": "无影响，多数需要管理员权限才能删"
+    },
+    "npm cache": {
+      "name": "npm 包缓存",
+      "what": "Node 装包时下载的副本",
+      "impact": "下次 npm install 会重新下载"
+    },
+    "npm cache (npx)": {
+      "name": "npx 临时包",
+      "what": "npx 临时安装的包",
+      "impact": "下次运行时重新下载"
+    },
+    "pnpm store": {
+      "name": "pnpm 包缓存",
+      "what": "pnpm 的全局包存储",
+      "impact": "下次装包重新下载"
+    },
+    "Yarn cache": {
+      "name": "Yarn 包缓存",
+      "what": "Yarn 下载的包副本",
+      "impact": "下次装包重新下载"
+    },
+    "pip cache": {
+      "name": "pip 包缓存",
+      "what": "Python 包（wheel / 源码包）的下载副本",
+      "impact": "下次 pip install 重新下载"
+    },
+    "go build cache": {
+      "name": "Go 编译缓存",
+      "what": "编译过程的中间产物",
+      "impact": "下次编译重新生成，首次编译会变慢"
+    },
+    "conda pkgs (.conda)": {
+      "name": "conda 包缓存",
+      "what": "conda 安装包的压缩包",
+      "impact": "下次装包重新下载"
+    },
+    "conda pkgs (anaconda3)": {
+      "name": "conda 包缓存（anaconda3）",
+      "what": "conda 安装包的压缩包",
+      "impact": "下次装包重新下载"
+    },
+    "conda pkgs (AppData)": {
+      "name": "conda 包缓存（用户级）",
+      "what": "conda 安装包的压缩包",
+      "impact": "下次装包重新下载"
+    },
+    "Crash dumps": {
+      "name": "程序崩溃转储",
+      "what": "程序崩溃时保存的内存快照",
+      "impact": "无影响。只有分析历史崩溃时才用得上"
+    },
+    "INetCache": {
+      "name": "系统网络缓存",
+      "what": "老式 WinINet 缓存",
+      "impact": "无影响"
+    },
+    "QQMusic stream cache": {
+      "name": "QQ音乐在线缓存",
+      "what": "在线播放过的歌曲缓存，不是你自己下载的歌",
+      "impact": "重听时要重新缓冲"
+    },
+    "CloudMusic stream cache": {
+      "name": "网易云音乐缓存",
+      "what": "在线播放过的歌曲缓存",
+      "impact": "重听时要重新缓冲"
+    },
+    "Windows Update download": {
+      "name": "Windows 更新下载包",
+      "what": "已经下载好的系统更新文件",
+      "impact": "该更新需要重新下载（删除前要先停 Windows Update 服务）"
+    },
+    "Delivery Optimization": {
+      "name": "更新传递优化缓存",
+      "what": "系统更新/应用商店的 P2P 分享缓存",
+      "impact": "无影响，会自动重建"
+    },
+    "Windows Logs": {
+      "name": "系统安装日志",
+      "what": "Windows 更新、组件安装的日志",
+      "impact": "系统更新出问题时少了排查依据"
+    },
+    "Minidump": {
+      "name": "蓝屏转储（小）",
+      "what": "蓝屏时的内存快照",
+      "impact": "无法再分析历史蓝屏原因"
+    },
+    "LiveKernelReports": {
+      "name": "内核转储",
+      "what": "驱动异常时的内核快照",
+      "impact": "无法再分析驱动崩溃"
+    },
+    "Memory dump": {
+      "name": "完整内存转储",
+      "what": "某次蓝屏时保存的完整内存镜像",
+      "impact": "无法再分析那次蓝屏，通常单个文件就 1-3 GB"
+    },
+    "Prefetch": {
+      "name": "预读取数据",
+      "what": "用于加速程序启动的预读缓存",
+      "impact": "前几次启动会略慢，影响很小"
+    },
+    "Windows.old": {
+      "name": "旧版 Windows",
+      "what": "升级前留下的旧系统，用于回滚",
+      "impact": "失去回滚到旧版本的能力。建议用系统「存储感知」清，它会连回滚记录一起处理"
+    },
+    "vscode-cpptools": {
+      "name": "C/C++ 代码索引",
+      "what": "VS Code 的 C/C++ 插件生成的代码索引数据库",
+      "impact": "重新打开工程要重建索引，大工程需要几分钟"
+    },
+    "NuGet packages": {
+      "name": "NuGet 包缓存",
+      "what": ".NET 项目依赖包的本地副本",
+      "impact": "下次 restore 重新下载，可能几个 GB"
+    },
+    "Gradle caches": {
+      "name": "Gradle 依赖缓存",
+      "what": "Java/Android 项目的依赖缓存",
+      "impact": "下次构建重新下载"
+    },
+    "Maven repository": {
+      "name": "Maven 本地仓库",
+      "what": "Java 项目的依赖包",
+      "impact": "下次构建重新下载，较慢"
+    },
+    "Docker data": {
+      "name": "Docker 镜像数据",
+      "what": "目录里是 docker_data.vhdx 和 ext4.vhdx —— 镜像、容器、数据卷本身，不是缓存",
+      "impact": "这个目录不能删：删掉等于删光所有镜像和容器，且无法恢复。要腾空间请用 docker system prune -a，或在 Docker Desktop 里调整磁盘镜像上限"
+    },
+    "Recycle Bin (empty it)": {
+      "name": "清空回收站",
+      "what": "历次删除的可恢复文件",
+      "impact": "清空后无法恢复"
+    },
+    "hiberfil.sys (disable hibernation)": {
+      "name": "关闭休眠功能",
+      "what": "休眠文件，大小约等于内存的 40-60%",
+      "impact": "失去休眠和快速启动。笔记本用户建议保留"
+    },
+    "pagefile.sys (move to another drive)": {
+      "name": "虚拟内存迁移",
+      "what": "系统的分页文件，不是垃圾",
+      "impact": "不要删，只能搬到其他盘；需要重启生效"
+    }
+  },
+
+  "byPrefix": [
+    {
+      "prefix": "Other user Temp: ",
+      "name": "另一个账户的临时文件（{rest}）",
+      "what": "同一台电脑上其他用户的临时文件",
+      "impact": "需要管理员权限；先确认那个账户没人在用"
+    },
+    {
+      "prefix": "Agent backup: ",
+      "name": "AI 助手删除备份（会话 {rest}）",
+      "what": "AI 编程助手在删除文件前复制的副本，用于撤销",
+      "impact": "没有实际用途。这类目录是「删了 40 GB 只多出 20 GB」的最常见原因"
+    }
+  ],
+
+  "bySuffix": [
+    {
+      "suffix": "Service Worker\\CacheStorage",
+      "name": "{app} 网页离线缓存",
+      "what": "网页应用（Service Worker）的离线资源缓存",
+      "impact": "网页首次加载略慢，不影响登录状态"
+    },
+    {
+      "suffix": "Code Cache",
+      "name": "{app} 代码缓存",
+      "what": "浏览器/应用的脚本编译缓存",
+      "impact": "自动重建，无影响"
+    },
+    {
+      "suffix": "GPUCache",
+      "name": "{app} 显卡缓存",
+      "what": "GPU 渲染缓存",
+      "impact": "自动重建，无影响"
+    },
+    {
+      "suffix": "Cache",
+      "name": "{app} 缓存",
+      "what": "该应用的缓存目录",
+      "impact": "一般无影响；删前确认这个应用没有未保存的工作"
+    },
+    {
+      "suffix": "cef_cache",
+      "name": "{app} 浏览器内核缓存",
+      "what": "内置 Chromium 内核的缓存",
+      "impact": "自动重建，无影响"
+    },
+    {
+      "suffix": "index",
+      "name": "{app} 代码索引",
+      "what": "IDE 的工程索引",
+      "impact": "重新打开工程要重建索引，大工程较慢"
+    },
+    {
+      "suffix": "caches",
+      "name": "{app} 缓存",
+      "what": "IDE 的编译/分析缓存",
+      "impact": "重新打开工程时重建"
+    },
+    {
+      "suffix": "log",
+      "name": "{app} 日志",
+      "what": "IDE 的运行日志",
+      "impact": "无影响"
+    },
+    {
+      "suffix": "tmp",
+      "name": "{app} 临时文件",
+      "what": "IDE 的临时文件",
+      "impact": "无影响"
+    },
+    {
+      "suffix": "ShaderCache",
+      "name": "{app} 着色器缓存",
+      "what": "GPU 着色器编译缓存",
+      "impact": "自动重建，无影响"
+    },
+    {
+      "suffix": "GrShaderCache",
+      "name": "{app} 图形着色器缓存",
+      "what": "GPU 着色器编译缓存",
+      "impact": "自动重建，无影响"
+    },
+    {
+      "suffix": "DawnCache",
+      "name": "{app} Dawn 渲染缓存",
+      "what": "WebGPU 渲染缓存",
+      "impact": "自动重建，无影响"
+    },
+    {
+      "suffix": "GraphiteDawnCache",
+      "name": "{app} Graphite 渲染缓存",
+      "what": "WebGPU 渲染缓存",
+      "impact": "自动重建，无影响"
+    }
+  ]
+}

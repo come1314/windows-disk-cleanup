@@ -1,0 +1,78 @@
+name: selftest
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  selftest:
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    runs-on: windows-latest
+    name: selftest (${{ matrix.shell }})
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Security assertions
+        shell: ${{ matrix.shell }}
+        run: ./scripts/cleanup.ps1 -Mode selftest
+
+      - name: Read-only scan
+        shell: ${{ matrix.shell }}
+        run: ./scripts/cleanup.ps1 -Mode scan
+
+      - name: Render Chinese report
+        shell: ${{ matrix.shell }}
+        run: |
+          ./scripts/cleanup.ps1 -Mode report -OutFile report.md
+          if (-not (Test-Path report.md)) { throw 'report not generated' }
+          # Read as UTF-8 and compare on a character code instead of a Chinese
+          # literal: the runner writes this block as UTF-8, and Windows
+          # PowerShell 5.1 would decode a literal as ANSI and compare garbage.
+          $c = [System.IO.File]::ReadAllText((Resolve-Path report.md), [System.Text.Encoding]::UTF8)
+          if ($c.Length -lt 200) { throw 'report looks empty' }
+          $ci = [string][char]0x78C1   # U+78C1
+          if (-not $c.Contains($ci)) { throw 'i18n dictionary did not render' }
+          Write-Host 'chinese report rendered OK'
+
+      - name: Render English report
+        shell: ${{ matrix.shell }}
+        run: |
+          ./scripts/cleanup.ps1 -Mode report -Lang en -OutFile report-en.md
+          $c = Get-Content report-en.md -Raw
+          if ($c -notmatch 'Disk cleanup report') { throw 'English report did not render' }
+          Write-Host 'english report rendered OK'
+
+      - name: Dry run must delete nothing
+        shell: ${{ matrix.shell }}
+        run: ./scripts/cleanup.ps1 -Mode clean -Keys deadbeef
+
+      - name: Verify mode runs
+        shell: ${{ matrix.shell }}
+        run: ./scripts/cleanup.ps1 -Mode verify
+
+      - name: Upload scan output
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-${{ matrix.shell }}
+          path: |
+            disk-scan.json
+            report.md
+          if-no-files-found: error
+
+  lint:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PSScriptAnalyzer (errors only)
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser -Repository PSGallery
+          $issues = Invoke-ScriptAnalyzer -Path ./scripts/cleanup.ps1 -Severity Error
+          if ($issues) { $issues | Format-Table -AutoSize | Out-String | Write-Host; exit 1 }
+          Write-Host 'no error-level issues'

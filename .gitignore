@@ -1,0 +1,40 @@
+# ---------------------------------------------------------------------------
+# Runtime artifacts produced by cleanup.ps1.
+# They describe ONE machine (paths, sizes, free space), so they must never be
+# committed. sample-report.md is the curated, publishable example instead.
+# ---------------------------------------------------------------------------
+disk-scan.json
+disk-scan*.json
+cleanup-audit.jsonl
+cleanup-audit*.jsonl
+admin-report.txt
+report*.md
+
+# ---------------------------------------------------------------------------
+# Local tool state - contains this machine's absolute paths. Never publish.
+# ---------------------------------------------------------------------------
+.workbuddy/
+.claude/
+.cursor/
+
+# ---------------------------------------------------------------------------
+# Editor / OS junk
+# ---------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------------------------------------------------------------------------
+# Build output and archives
+# ---------------------------------------------------------------------------
+dist/
+build/
+out/
+*.zip
+*.7z
+*.tar.gz
+*.tmp
+*.log
