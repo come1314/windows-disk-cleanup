@@ -1469,6 +1469,19 @@ function Invoke-SelfTest {
         Check 'first-only stops after one hit' (@(Get-DeniedDescendant -Root $tmpRoot -FirstOnly).Count -eq 1)
         Check 'cache-only subtree comes back clear' (@(Get-DeniedDescendant -Root (Join-Path $tmpRoot 'clean')).Count -eq 0)
 
+        # A failure here has to be actionable from the log alone: the tree lives
+        # under the host's temp directory, and that is exactly the thing that
+        # differs between a developer machine and a CI runner.
+        if ($hits.Count -ne 1) {
+            Write-Output ('  debug  temp dir  : ' + [System.IO.Path]::GetTempPath())
+            Write-Output ('  debug  test root : ' + $tmpRoot)
+            Write-Output ('  debug  vhdx file : ' + [System.IO.File]::Exists($vhdx) + '  ' + $vhdx)
+            Write-Output ('  debug  cache file: ' + [System.IO.File]::Exists((Join-Path $tmpRoot 'plain.cache')))
+            Write-Output ('  debug  walk count: ' + (Get-PathSize $tmpRoot).Files)
+            Write-Output ('  debug  hits      : ' + ($hits -join ' | '))
+            Write-Output ('  debug  deny(vhdx): ' + (Test-DeniedPath $vhdx))
+            Write-Output ('  debug  profile   : ' + $env:USERPROFILE + '  TEMP=' + $env:TEMP)
+        }
         Check 'entry gate blocks the nested vhdx' (-not (Test-DeletableChild (Get-Item -LiteralPath $vhdx -Force)))
         Check 'entry gate allows a plain cache file' (Test-DeletableChild (Get-Item -LiteralPath (Join-Path $tmpRoot 'plain.cache') -Force))
 
@@ -1558,6 +1571,18 @@ function Invoke-SelfTest {
         Check 'delete refuses a subtree holding a vhdx' (Test-Path -LiteralPath $dvhdx)
         Check 'refusal is counted, not silently ignored' ($res.Protected -eq 1)
         Check 'delete reports at least two removals' ($res.Ok -ge 2)
+
+        if ($res.Ok -lt 2 -or $res.Protected -ne 1) {
+            Write-Output ('  debug  target    : ' + $dTarget)
+            Write-Output ('  debug  exists    : ' + [System.IO.Directory]::Exists((Get-LongPath $dTarget)))
+            Write-Output ('  debug  walk count: ' + (Get-PathSize $dTarget).Files)
+            Write-Output ('  debug  result    : ok=' + $res.Ok + ' fail=' + $res.Fail + ' protected=' + $res.Protected)
+            try {
+                foreach ($f in [System.IO.Directory]::EnumerateFileSystemEntries((Get-LongPath $dTarget))) {
+                    Write-Output ('  debug  entry     : ' + $f + '  denied=' + (Test-DeniedPath $f))
+                }
+            } catch { }
+        }
 
         # a junction is unlinked, never followed: the target must be untouched
         $linkMade = $false
